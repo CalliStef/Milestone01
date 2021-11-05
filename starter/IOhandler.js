@@ -3,13 +3,14 @@
  * File Name: IOhandler.js
  * Description: Collection of functions for files input/output related operations
  * 
- * Created Date: 
- * Author: 
+ * Created Date: November 5th, 2021
+ * Author: Callista Stefanie Taswin
  * 
  */
 
 const unzipper = require('unzipper'),
-  fs = require("fs"),
+  fs = require("fs").promises,
+  fsC = require("fs"),
   PNG = require('pngjs').PNG,
   path = require('path');
 
@@ -22,7 +23,16 @@ const unzipper = require('unzipper'),
  * @return {promise}
  */
 const unzip = (pathIn, pathOut) => {
-
+  return new Promise((resolve, reject) => {
+    fsC.createReadStream(pathIn)
+    .pipe(unzipper.Extract({ path: pathOut }))
+    .promise()
+    .then( () => {
+      console.log("Extraction operation complete");
+      resolve();
+    })
+    .catch((err) => reject(err));
+  })
 };
 
 /**
@@ -31,9 +41,24 @@ const unzip = (pathIn, pathOut) => {
  * @param {string} path 
  * @return {promise}
  */
-const readDir = dir => {
 
+function readDir(dir) {
+  return new Promise((resolve, reject) => {        
+      let pngFiles = [];
+      fs.readdir(dir)
+        .then(files => {
+          files.forEach(function(file){
+            let extension = path.extname(file);
+            if(extension == '.png'){
+              pngFiles.push(file);
+            }
+          })
+          resolve(pngFiles);
+        })
+        .catch(err => reject(err))
+  });
 };
+
 
 /**
  * Description: Read in png file by given pathIn, 
@@ -44,7 +69,30 @@ const readDir = dir => {
  * @return {promise}
  */
 const grayScale = (pathIn, pathOut) => {
+  return new Promise ((resolve, reject) => {
+    fsC.createReadStream(pathIn)
+    .pipe(
+      new PNG ({})
+    )
+    .on("parsed", function(){
+      for (var y = 0; y < this.height; y++) {
+        for (var x = 0; x < this.width; x++) {
+          var idx = (this.width * y + x) << 2;
+               
+          let grayAlgo= (this.data[idx] + this.data[idx + 1] + this.data[idx + 2]) / 3;
 
+          this.data[idx] = grayAlgo;
+          this.data[idx + 1] = grayAlgo;
+          this.data[idx + 2] = grayAlgo;
+        }
+      }
+      let num = Math.random();
+      this.pack().pipe(fsC.createWriteStream(`${pathOut}/out${num}.png`))
+    })
+    resolve();
+    reject();
+  }) 
+  
 };
 
 module.exports = {
